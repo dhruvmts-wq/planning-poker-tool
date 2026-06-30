@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Planning Poker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #f5f5f3;
+  --surface: #ffffff;
+  --surface2: #f0f0ee;
+  --surface3: #e8e8e5;
+  --border: rgba(0,0,0,0.08);
+  --border2: rgba(0,0,0,0.14);
+  --text: #1a1a18;
+  --muted: #6b6b68;
+  --accent: #1a6b3c;
+  --accent-bg: #e8f5ee;
+  --danger: #c0392b;
+  --danger-bg: #fdf0ee;
+  --warn: #b07d1a;
+  --warn-bg: #fdf3e2;
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'IBM Plex Sans', sans-serif;
+  --radius: 8px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+}
+
+body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; line-height: 1.6; min-height: 100vh; }
+
+.shell { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+
+header { margin-bottom: 28px; display: flex; align-items: flex-start; gap: 12px; }
+.header-bar { width: 4px; height: 44px; background: var(--accent); border-radius: 2px; flex-shrink: 0; margin-top: 2px; }
+header h1 { font-family: var(--mono); font-size: 18px; font-weight: 500; color: var(--text); }
+header p { font-size: 12px; color: var(--muted); margin-top: 2px; font-family: var(--mono); }
+
+.card { background: var(--surface); border: 0.5px solid var(--border2); border-radius: var(--radius); padding: 22px; margin-bottom: 14px; box-shadow: var(--shadow); }
+
+.field { margin-bottom: 14px; }
+.field:last-child { margin-bottom: 0; }
+
+label { display: block; font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
+
+input[type=text], select {
+  width: 100%; background: var(--surface2); border: 0.5px solid var(--border2); border-radius: 6px;
+  color: var(--text); font-family: var(--mono); font-size: 13px; padding: 9px 11px;
+  outline: none; transition: border-color 0.15s, box-shadow 0.15s; appearance: none;
+}
+input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(26,107,60,0.1); }
+input::placeholder { color: var(--muted); }
+
+.hint { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-top: 6px; }
+
+button { font-family: var(--mono); font-size: 12px; font-weight: 500; cursor: pointer; border-radius: 6px; border: none; transition: all 0.15s; }
+
+.btn-primary { background: var(--accent); color: #fff; padding: 10px 22px; letter-spacing: 0.03em; width: 100%; margin-top: 8px; }
+.btn-primary:hover { background: #155a32; }
+.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.btn-sm { background: var(--surface2); color: var(--muted); border: 0.5px solid var(--border2); padding: 7px 14px; }
+.btn-sm:hover { color: var(--text); background: var(--surface3); }
+
+.btn-danger { background: var(--danger-bg); color: var(--danger); border: 0.5px solid rgba(192,57,43,0.25); padding: 7px 14px; }
+.btn-danger:hover { background: #fbe2dd; }
+
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+#screen-landing, #screen-room { display: none; }
+#screen-landing.active, #screen-room.active { display: block; }
+
+.tabs2 { display: flex; gap: 2px; border-bottom: 1.5px solid var(--border2); margin-bottom: 18px; }
+.tab2-btn { background: none; border: none; border-bottom: 2px solid transparent; padding: 9px 18px; font-family: var(--mono); font-size: 12px; color: var(--muted); cursor: pointer; margin-bottom: -1.5px; border-radius: 0; letter-spacing: 0.03em; }
+.tab2-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 500; }
+.tab2-panel { display: none; }
+.tab2-panel.active { display: block; }
+
+.room-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; flex-wrap: wrap; gap: 10px; }
+.room-code-box { font-family: var(--mono); font-size: 13px; background: var(--surface2); border: 0.5px solid var(--border2); border-radius: 6px; padding: 8px 14px; display: flex; align-items: center; gap: 8px; }
+.room-code-box b { letter-spacing: 0.1em; color: var(--accent); }
+
+.story-card { background: var(--accent-bg); border: 0.5px solid rgba(26,107,60,0.2); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 18px; }
+.story-card label { color: var(--accent); }
+.story-card .story-title { font-size: 16px; font-weight: 500; }
+.story-card.empty { background: var(--surface2); border-color: var(--border2); }
+.story-card.empty .story-title { color: var(--muted); font-style: italic; font-weight: 400; }
+
+.scale-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+.scale-card {
+  width: 56px; height: 76px; background: var(--surface); border: 1.5px solid var(--border2); border-radius: 8px;
+  display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 17px; font-weight: 500;
+  cursor: pointer; transition: all 0.15s; box-shadow: var(--shadow);
+}
+.scale-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.scale-card.selected { background: var(--accent); color: #fff; border-color: var(--accent); transform: translateY(-3px); box-shadow: 0 3px 8px rgba(26,107,60,0.25); }
+
+.participants-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin-bottom: 18px; }
+.participant-tile { background: var(--surface); border: 0.5px solid var(--border2); border-radius: var(--radius); padding: 14px 10px; text-align: center; box-shadow: var(--shadow); position: relative; }
+.participant-tile.host-tile::before { content: "HOST"; position: absolute; top: 4px; right: 6px; font-family: var(--mono); font-size: 8px; color: var(--muted); letter-spacing: 0.05em; }
+.participant-name { font-size: 12px; font-weight: 500; margin-bottom: 8px; word-break: break-word; }
+.participant-vote { width: 36px; height: 48px; margin: 0 auto; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 15px; font-weight: 500; }
+.participant-vote.pending { background: var(--surface2); border: 1.5px dashed var(--border2); color: var(--muted); }
+.participant-vote.voted { background: var(--accent-bg); border: 1.5px solid var(--accent); color: var(--accent); }
+.participant-vote.revealed { background: var(--accent); color: #fff; border: 1.5px solid var(--accent); }
+
+.results-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 9px; margin-top: 16px; }
+.result-metric { background: var(--surface); border: 0.5px solid var(--border2); border-radius: var(--radius); padding: 12px 14px; box-shadow: var(--shadow); }
+.result-metric-val { font-family: var(--mono); font-size: 20px; font-weight: 500; color: var(--accent); line-height: 1; }
+.result-metric-lbl { font-size: 10px; color: var(--muted); margin-top: 5px; text-transform: uppercase; letter-spacing: 0.06em; font-family: var(--mono); }
+
+.divergence-flag { display: inline-flex; align-items: center; gap: 6px; background: var(--warn-bg); color: var(--warn); border: 0.5px solid rgba(176,125,26,0.25); border-radius: 6px; padding: 6px 12px; font-family: var(--mono); font-size: 11px; margin-top: 10px; }
+
+table.history-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.history-table th { text-align: left; font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--border2); }
+table.history-table td { padding: 9px 10px; border-bottom: 0.5px solid var(--border); font-family: var(--mono); }
+table.history-table tr:last-child td { border-bottom: none; }
+
+.status-badge { display: inline-block; font-family: var(--mono); font-size: 10px; padding: 3px 9px; border-radius: 10px; letter-spacing: 0.03em; }
+.status-badge.consensus { background: var(--accent-bg); color: var(--accent); }
+.status-badge.spread { background: var(--warn-bg); color: var(--warn); }
+
+footer { text-align: center; font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 24px; }
+
+.error-msg { display: none; background: var(--danger-bg); border: 0.5px solid rgba(192,57,43,0.25); border-radius: 6px; color: var(--danger); font-family: var(--mono); font-size: 12px; padding: 10px 14px; margin-top: 12px; }
+.error-msg.show { display: block; }
+
+.empty-state { text-align: center; padding: 30px 20px; color: var(--muted); font-family: var(--mono); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <header>
+    <div class="header-bar"></div>
+    <div>
+      <h1>Planning Poker</h1>
+      <p>real-time · sprint estimation · async-friendly</p>
+    </div>
+  </header>
+
+  <!-- LANDING SCREEN -->
+  <div id="screen-landing" class="active">
+
+    <div class="card">
+      <div class="tabs2">
+        <button class="tab2-btn active" onclick="switchLandingTab('host')">Host a session</button>
+        <button class="tab2-btn" onclick="switchLandingTab('join')">Join a session</button>
+      </div>
+
+      <div id="tab-host" class="tab2-panel active">
+        <div class="field">
+          <label>Your name (host)</label>
+          <input type="text" id="hostName" placeholder="e.g. Dhruv" />
+        </div>
+        <div class="field">
+          <label>Team / session name</label>
+          <input type="text" id="sessionName" placeholder="e.g. Sprint 24 Estimation" />
+        </div>
+        <div class="field">
+          <label>Estimation scale</label>
+          <select id="scaleSelect">
+            <option value="fibonacci">Fibonacci — 1, 2, 3, 5, 8, 13, 21, ?</option>
+            <option value="tshirt">T-shirt sizes — XS, S, M, L, XL, ?</option>
+          </select>
+        </div>
+        <button class="btn-primary" onclick="createSession()">Create session</button>
+        <p class="hint">You'll get a room code to share with your team.</p>
+      </div>
+
+      <div id="tab-join" class="tab2-panel">
+        <div class="field">
+          <label>Your name</label>
+          <input type="text" id="joinName" placeholder="e.g. Priya" />
+        </div>
+        <div class="field">
+          <label>Room code</label>
+          <input type="text" id="joinCode" placeholder="e.g. ABCD12" style="text-transform: uppercase;" />
+        </div>
+        <button class="btn-primary" onclick="joinSession()">Join session</button>
+      </div>
+
+      <div id="landingError" class="error-msg"></div>
+    </div>
+
+    <div class="card" style="background: var(--surface2); box-shadow: none;">
+      <p class="hint" style="font-size: 11px;">
+        Sessions run on a free Firebase backend. Nothing is stored beyond the session — close the tab and the room data is gone unless exported. No account or sign-up needed for participants.
+      </p>
+    </div>
+
+  </div>
+
+  <!-- ROOM SCREEN -->
+  <div id="screen-room">
+
+    <div class="room-header">
+      <div>
+        <div class="room-code-box">
+          Room code: <b id="displayRoomCode">—</b>
+          <button class="btn-sm" onclick="copyRoomLink()" style="padding: 4px 9px;">Copy invite link</button>
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn-sm" id="exportBtn" onclick="exportSession()">Export JSON</button>
+        <button class="btn-danger" onclick="leaveSession()">Leave</button>
+      </div>
+    </div>
+
+    <div id="storyCard" class="story-card empty">
+      <label>Currently estimating</label>
+      <div class="story-title" id="storyTitleDisplay">No story set yet</div>
+    </div>
+
+    <div id="hostControls" class="card" style="display:none;">
+      <div class="field">
+        <label>Story / ticket title</label>
+        <div class="row">
+          <input type="text" id="storyInput" placeholder="e.g. JIRA-2391 — Add SSO login" style="flex: 1;" oninput="updateStoryTitle()" />
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <label style="margin-bottom: 10px;">Cast your vote</label>
+      <div class="scale-row" id="scaleCardsRow"></div>
+      <div id="myVoteHint" class="hint"></div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content: space-between; margin-bottom: 14px;">
+        <label style="margin: 0;">Participants (<span id="participantCount">0</span>)</label>
+        <div class="row" id="hostRevealControls" style="display:none;">
+          <button class="btn-sm" onclick="resetVotes()">Reset round</button>
+          <button class="btn-primary" style="width:auto; margin:0; padding: 8px 18px;" onclick="revealVotes()">Reveal votes</button>
+        </div>
+      </div>
+      <div class="participants-grid" id="participantsGrid"></div>
+
+      <div id="resultsBlock" style="display:none;">
+        <div class="results-summary" id="resultsSummary"></div>
+        <div id="divergenceFlag"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="tabs2">
+        <button class="tab2-btn active" onclick="switchRoomTab('history')">Round history</button>
+      </div>
+      <div id="tab-history" class="tab2-panel active">
+        <table class="history-table" id="historyTable">
+          <thead><tr><th>#</th><th>Story</th><th>Result</th><th>Status</th></tr></thead>
+          <tbody id="historyBody"></tbody>
+        </table>
+        <div id="historyEmpty" class="empty-state">No rounds completed yet.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>Built by Dhruv S. — runs on Firebase Realtime Database, free tier</footer>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+// ====== FIREBASE CONFIG — replace with your own project config ======
+const firebaseConfig = {
+  apiKey: "AIzaSyD327DIMSgbDb1NodNfNCK6_B-_FeRaZSY",
+  authDomain: "planning-poker-dhruv.firebaseapp.com",
+  databaseURL: "https://planning-poker-dhruv-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "planning-poker-dhruv",
+  storageBucket: "planning-poker-dhruv.firebasestorage.app",
+  messagingSenderId: "902763157513",
+  appId: "1:902763157513:web:98c553816ae934d13d40d8"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+const SCALES = {
+  fibonacci: ["1","2","3","5","8","13","21","?"],
+  tshirt: ["XS","S","M","L","XL","?"]
+};
+
+let state = {
+  roomCode: null,
+  myName: null,
+  myId: null,
+  isHost: false,
+  scaleType: "fibonacci",
+  roundNumber: 1
+};
+
+function genRoomCode() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+function genUserId() {
+  return 'u_' + Math.random().toString(36).substr(2, 9);
+}
+
+function showLandingError(msg) {
+  const el = document.getElementById('landingError');
+  el.textContent = msg;
+  el.classList.add('show');
+}
+
+function switchLandingTab(tab) {
+  document.querySelectorAll('#screen-landing .tab2-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('#screen-landing .tab2-panel').forEach(p => p.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+
+function switchRoomTab(tab) {
+  document.querySelectorAll('#screen-room .tab2-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('#screen-room .tab2-panel').forEach(p => p.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+
+function createSession() {
+  const name = document.getElementById('hostName').value.trim();
+  const sessionName = document.getElementById('sessionName').value.trim() || "Estimation Session";
+  const scaleType = document.getElementById('scaleSelect').value;
+  if (!name) { showLandingError("Enter your name to host a session."); return; }
+
+  const roomCode = genRoomCode();
+  const userId = genUserId();
+
+  const roomRef = db.ref('rooms/' + roomCode);
+  roomRef.set({
+    sessionName: sessionName,
+    hostId: userId,
+    scaleType: scaleType,
+    currentStory: "",
+    revealed: false,
+    roundNumber: 1,
+    createdAt: Date.now(),
+    participants: {
+      [userId]: { name: name, isHost: true, vote: null, joinedAt: Date.now() }
+    },
+    history: {}
+  });
+
+  state.roomCode = roomCode;
+  state.myName = name;
+  state.myId = userId;
+  state.isHost = true;
+  state.scaleType = scaleType;
+
+  enterRoom();
+}
+
+function joinSession() {
+  const name = document.getElementById('joinName').value.trim();
+  let code = document.getElementById('joinCode').value.trim().toUpperCase();
+  if (!name) { showLandingError("Enter your name to join."); return; }
+  if (!code) { showLandingError("Enter a room code."); return; }
+
+  const roomRef = db.ref('rooms/' + code);
+  roomRef.once('value').then(snap => {
+    if (!snap.exists()) { showLandingError("Room not found. Check the code and try again."); return; }
+    const data = snap.val();
+    const userId = genUserId();
+    roomRef.child('participants/' + userId).set({ name: name, isHost: false, vote: null, joinedAt: Date.now() });
+
+    state.roomCode = code;
+    state.myName = name;
+    state.myId = userId;
+    state.isHost = false;
+    state.scaleType = data.scaleType || "fibonacci";
+
+    enterRoom();
+  }).catch(() => showLandingError("Could not join the room. Try again."));
+}
+
+let roomRef = null;
+
+function enterRoom() {
+  document.getElementById('screen-landing').classList.remove('active');
+  document.getElementById('screen-room').classList.add('active');
+  document.getElementById('displayRoomCode').textContent = state.roomCode;
+
+  if (state.isHost) {
+    document.getElementById('hostControls').style.display = 'block';
+    document.getElementById('hostRevealControls').style.display = 'flex';
+  }
+
+  renderScaleCards();
+
+  roomRef = db.ref('rooms/' + state.roomCode);
+  roomRef.on('value', snap => {
+    if (!snap.exists()) return;
+    renderRoom(snap.val());
+  });
+
+  window.addEventListener('beforeunload', () => {
+    if (roomRef) roomRef.child('participants/' + state.myId).remove();
+  });
+}
+
+function renderScaleCards() {
+  const scale = SCALES[state.scaleType];
+  const row = document.getElementById('scaleCardsRow');
+  row.innerHTML = scale.map(v =>
+    `<div class="scale-card" data-val="${v}" onclick="castVote('${v}')">${v}</div>`
+  ).join('');
+}
+
+function castVote(val) {
+  roomRef.child('participants/' + state.myId + '/vote').set(val);
+}
+
+function updateStoryTitle() {
+  const val = document.getElementById('storyInput').value;
+  roomRef.child('currentStory').set(val);
+}
+
+function revealVotes() {
+  roomRef.child('revealed').set(true);
+}
+
+function resetVotes() {
+  roomRef.once('value').then(snap => {
+    const data = snap.val();
+    const updates = {};
+    Object.keys(data.participants || {}).forEach(uid => {
+      updates['participants/' + uid + '/vote'] = null;
+    });
+    updates['revealed'] = false;
+    roomRef.update(updates);
+  });
+}
+
+function saveRoundToHistory(data) {
+  if (!state.isHost) return;
+  const votes = Object.values(data.participants || {}).map(p => p.vote).filter(v => v !== null && v !== undefined);
+  if (votes.length === 0) return;
+
+  const numeric = votes.map(v => parseFloat(v)).filter(v => !isNaN(v));
+  let resultText = "—";
+  let status = "spread";
+  if (numeric.length === votes.length && numeric.length > 0) {
+    const allSame = numeric.every(v => v === numeric[0]);
+    resultText = allSame ? numeric[0].toString() : `${Math.min(...numeric)}–${Math.max(...numeric)}`;
+    status = allSame ? "consensus" : "spread";
+  } else {
+    const allSame = votes.every(v => v === votes[0]);
+    resultText = allSame ? votes[0] : votes.join(', ');
+    status = allSame ? "consensus" : "spread";
+  }
+
+  const roundKey = 'round_' + Date.now();
+  roomRef.child('history/' + roundKey).set({
+    story: data.currentStory || "(untitled)",
+    votes: data.participants,
+    resultText: resultText,
+    status: status,
+    timestamp: Date.now()
+  });
+}
+
+let lastRevealed = false;
+
+function renderRoom(data) {
+  const participants = data.participants || {};
+  const participantList = Object.entries(participants).map(([id, p]) => ({ id, ...p }));
+
+  document.getElementById('participantCount').textContent = participantList.length;
+
+  // story display
+  const storyCard = document.getElementById('storyCard');
+  const storyTitle = document.getElementById('storyTitleDisplay');
+  if (data.currentStory) {
+    storyCard.classList.remove('empty');
+    storyTitle.textContent = data.currentStory;
+  } else {
+    storyCard.classList.add('empty');
+    storyTitle.textContent = "No story set yet";
+  }
+  if (state.isHost && document.activeElement.id !== 'storyInput') {
+    document.getElementById('storyInput').value = data.currentStory || "";
+  }
+
+  // scale cards selection state
+  const myVote = participants[state.myId] ? participants[state.myId].vote : null;
+  document.querySelectorAll('.scale-card').forEach(c => {
+    c.classList.toggle('selected', c.dataset.val === myVote);
+  });
+  document.getElementById('myVoteHint').textContent = myVote ? `You voted: ${myVote}` : "Pick a card to vote.";
+
+  // participants grid
+  const grid = document.getElementById('participantsGrid');
+  grid.innerHTML = participantList.map(p => {
+    const hasVoted = p.vote !== null && p.vote !== undefined;
+    let voteDisplay = "";
+    let voteClass = "pending";
+    if (data.revealed && hasVoted) { voteDisplay = p.vote; voteClass = "revealed"; }
+    else if (hasVoted) { voteDisplay = "✓"; voteClass = "voted"; }
+    else { voteDisplay = "—"; voteClass = "pending"; }
+    return `
+      <div class="participant-tile ${p.isHost ? 'host-tile' : ''}">
+        <div class="participant-name">${escapeHtml(p.name)}</div>
+        <div class="participant-vote ${voteClass}">${voteDisplay}</div>
+      </div>`;
+  }).join('');
+
+  // results
+  const resultsBlock = document.getElementById('resultsBlock');
+  if (data.revealed) {
+    resultsBlock.style.display = 'block';
+    renderResults(participantList);
+    if (!lastRevealed) saveRoundToHistory(data);
+  } else {
+    resultsBlock.style.display = 'none';
+  }
+  lastRevealed = data.revealed;
+
+  // history
+  renderHistory(data.history || {});
+}
+
+function renderResults(participantList) {
+  const votes = participantList.map(p => p.vote).filter(v => v !== null && v !== undefined);
+  const numeric = votes.map(v => parseFloat(v)).filter(v => !isNaN(v));
+
+  let summaryHtml = "";
+  if (numeric.length > 0) {
+    const avg = (numeric.reduce((a,b)=>a+b,0) / numeric.length).toFixed(1);
+    const min = Math.min(...numeric);
+    const max = Math.max(...numeric);
+    summaryHtml = `
+      <div class="result-metric"><div class="result-metric-val">${avg}</div><div class="result-metric-lbl">Average</div></div>
+      <div class="result-metric"><div class="result-metric-val">${min}</div><div class="result-metric-lbl">Lowest</div></div>
+      <div class="result-metric"><div class="result-metric-val">${max}</div><div class="result-metric-lbl">Highest</div></div>
+      <div class="result-metric"><div class="result-metric-val">${votes.length}</div><div class="result-metric-lbl">Votes cast</div></div>`;
+    document.getElementById('divergenceFlag').innerHTML = (max - min >= 5)
+      ? `<div class="divergence-flag">⚠ Wide spread (${min}–${max}) — worth a quick discussion before locking the estimate.</div>` : "";
+  } else {
+    const uniqueVals = [...new Set(votes)];
+    summaryHtml = `<div class="result-metric"><div class="result-metric-val">${votes.length}</div><div class="result-metric-lbl">Votes cast</div></div>
+      <div class="result-metric"><div class="result-metric-val">${uniqueVals.length}</div><div class="result-metric-lbl">Distinct sizes</div></div>`;
+    document.getElementById('divergenceFlag').innerHTML = (uniqueVals.length > 1)
+      ? `<div class="divergence-flag">⚠ Sizes don't match — worth a quick discussion before locking the estimate.</div>` : "";
+  }
+  document.getElementById('resultsSummary').innerHTML = summaryHtml;
+}
+
+function renderHistory(history) {
+  const rounds = Object.values(history).sort((a,b) => a.timestamp - b.timestamp);
+  const body = document.getElementById('historyBody');
+  const empty = document.getElementById('historyEmpty');
+  if (rounds.length === 0) {
+    body.innerHTML = "";
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  body.innerHTML = rounds.map((r, i) => `
+    <tr>
+      <td>${i+1}</td>
+      <td>${escapeHtml(r.story)}</td>
+      <td>${escapeHtml(r.resultText)}</td>
+      <td><span class="status-badge ${r.status}">${r.status}</span></td>
+    </tr>`).join('');
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function copyRoomLink() {
+  const link = window.location.origin + window.location.pathname + '?room=' + state.roomCode;
+  navigator.clipboard.writeText(link).then(() => alert("Invite link copied to clipboard."));
+}
+
+function exportSession() {
+  roomRef.once('value').then(snap => {
+    const data = snap.val();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `PlanningPoker_${state.roomCode}.json`;
+    a.click();
+  });
+}
+
+function leaveSession() {
+  if (roomRef) roomRef.child('participants/' + state.myId).remove();
+  if (roomRef) roomRef.off();
+  document.getElementById('screen-room').classList.remove('active');
+  document.getElementById('screen-landing').classList.add('active');
+  state = { roomCode: null, myName: null, myId: null, isHost: false, scaleType: "fibonacci", roundNumber: 1 };
+}
+
+// auto-join via URL param
+window.addEventListener('load', () => {
+  const params = new URLSearchParams(window.location.search);
+  const roomParam = params.get('room');
+  if (roomParam) {
+    switchLandingTab('join');
+    document.querySelectorAll('#screen-landing .tab2-btn')[1].click();
+    document.getElementById('joinCode').value = roomParam;
+  }
+});
+</script>
+</body>
+</html>
