@@ -2,7 +2,7 @@
 
 A real-time, browser-based planning poker tool for Agile estimation sessions — built so a team can join a session with just a room code, vote, and see results live, without any account creation or app install.
 
-**[Live Demo →](#)** *(add your GitHub Pages link here once published)*
+https://dhruvmts-wq.github.io/planning-poker-tool/
 
 ## Why I built this
 
