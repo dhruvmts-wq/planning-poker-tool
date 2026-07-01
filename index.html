@@ -376,6 +376,16 @@ function joinSession() {
   roomRef.once('value').then(snap => {
     if (!snap.exists()) { showLandingError("Room not found. Check the code and try again."); return; }
     const data = snap.val();
+	const existingNames = Object.values(data.participants || {}).map(p => p.name.trim().toLowerCase());
+
+if (existingNames.includes(name.trim().toLowerCase())) {
+
+    showLandingError(
+        "Someone with that name is already in the room. Please choose another name."
+    );
+
+    return;
+}
     const userId = genUserId();
     roomRef.child('participants/' + userId).set({ name: name, isHost: false, vote: null, joinedAt: Date.now() });
 
@@ -405,13 +415,28 @@ function enterRoom() {
 
   roomRef = db.ref('rooms/' + state.roomCode);
   roomRef.on('value', snap => {
-    if (!snap.exists()) return;
-    renderRoom(snap.val());
-  });
 
-  window.addEventListener('beforeunload', () => {
-    if (roomRef) roomRef.child('participants/' + state.myId).remove();
-  });
+    if (!snap.exists()) {
+
+        if (!state.isHost) {
+
+            alert("The host has ended the session.");
+
+        }
+
+        leaveSession();
+
+        return;
+    }
+
+    renderRoom(snap.val());
+
+});
+
+  roomRef
+    .child('participants/' + state.myId)
+    .onDisconnect()
+    .remove();
 }
 
 function renderScaleCards() {
@@ -480,6 +505,14 @@ let lastRevealed = false;
 function renderRoom(data) {
   const participants = data.participants || {};
   const participantList = Object.entries(participants).map(([id, p]) => ({ id, ...p }));
+if (!participantList.some(p => p.id === data.hostId)) {
+
+    if (state.isHost) return;
+
+    roomRef.remove();
+
+    return;
+}
 
   document.getElementById('participantCount').textContent = participantList.length;
 
@@ -604,8 +637,22 @@ function exportSession() {
 }
 
 function leaveSession() {
-  if (roomRef) roomRef.child('participants/' + state.myId).remove();
-  if (roomRef) roomRef.off();
+
+    if (!roomRef) return;
+
+    if (state.isHost) {
+
+        roomRef.remove();
+
+    } else {
+
+        roomRef
+            .child('participants/' + state.myId)
+            .remove();
+
+    }
+
+    roomRef.off();
   document.getElementById('screen-room').classList.remove('active');
   document.getElementById('screen-landing').classList.add('active');
   state = { roomCode: null, myName: null, myId: null, isHost: false, scaleType: "fibonacci", roundNumber: 1 };
